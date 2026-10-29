@@ -10,6 +10,7 @@ import { clamp, rand, gauss } from '../core/util.js';
 import { settings } from '../core/storage.js';
 
 const SPOT_X = HALF_L - 11;
+const DIVE_WINDOW = 3;
 const raycaster = new THREE.Raycaster();
 const goalPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), HALF_L);
 const v2 = new THREE.Vector2();
@@ -116,6 +117,8 @@ export class PenaltyShootout {
     const taker = kickSquad.takers[kickSquad.next % kickSquad.takers.length];
     kickSquad.next++;
     taker.pos.set(SPOT_X - 2.2, 0, -0.6);
+    taker.vel.set(0, 0, 0);
+    taker.target.copy(taker.pos);
     taker.faceTowards(HALF_L, 0);
     const gk = keepSquad.gk;
     gk.pos.set(HALF_L - 0.25, 0, 0);
@@ -148,7 +151,7 @@ export class PenaltyShootout {
     this.time += dt;
     this.stateT += dt;
     this.world.tick(dt);
-    if (this.state === 'dive' && this.stateT > 1.9 && !this.shotTaken) this.aiShoot();
+    if (this.state === 'dive' && this.stateT > DIVE_WINDOW && !this.shotTaken) this.aiShoot();
     if (this.state === 'runup') {
       this.taker.target.set(SPOT_X - 0.4, 0, -0.15);
       this.taker.urgency = 0.45;
@@ -175,9 +178,10 @@ export class PenaltyShootout {
 
   updateCamera(dt) {
     const cam = this.world.camera;
-    const want = this.state === 'done' ? tmp.set(SPOT_X - 14, 5, 6) : tmp.set(SPOT_X - 7.5, 2.7, 0);
-    cam.position.lerp(want, 1 - Math.exp(-dt * 4));
-    cam.lookAt(HALF_L, 1.1, 0);
+    // Behind and above the taker so the taker, ball and whole goal are all in frame.
+    const want = this.state === 'done' ? tmp.set(SPOT_X - 14, 5, 6) : tmp.set(SPOT_X - 8.5, 3.1, 0);
+    cam.position.lerp(want, 1 - Math.exp(-dt * 6));
+    cam.lookAt(HALF_L, 0.3, 0);
   }
 
   aimFromScreen(x, y) {
@@ -203,7 +207,8 @@ export class PenaltyShootout {
     if (!this.touch.active) return;
     this.touch.active = false;
     const s = this.touch.screen;
-    if (s.length < 2) return;
+    // A tap on the goal aims too; the keeper needs a real swipe.
+    if (s.length < 2 && this.state !== 'aim') return;
     const a = s[0];
     const b = s[s.length - 1];
     if (this.state === 'aim') {
@@ -214,10 +219,11 @@ export class PenaltyShootout {
       this.stateT = 0;
       this.kicked = false;
       this.emit('pensHint', { text: '' });
-    } else if (this.state === 'dive' && !this.userDive) {
+    } else if (this.kickSide === 1 && !this.userDive && (this.state === 'dive' || (this.state === 'runup' && !this.kicked))) {
+      // Keeper swipe: accepted any time before the ball is struck.
       const dx = b.x - a.x;
       const dy = b.y - a.y;
-      if (Math.hypot(dx, dy) < 25) return;
+      if (Math.hypot(dx, dy) < 15) return;
       this.userDive = { zone: Math.abs(dx) < 45 ? 0 : dx > 0 ? 1 : -1, high: dy < -60 };
       this.diveKeeper(this.keeper, this.userDive.zone, this.userDive.high);
       if (!this.shotTaken) setTimeout(() => this.aiShoot(), 120);
@@ -320,7 +326,7 @@ export class PenaltyShootout {
       d.pulse(p.x, p.y, '#ffd23f', this.time);
     }
     if (this.state === 'dive' && !this.userDive) {
-      const k = clamp(1 - this.stateT / 1.9, 0, 1);
+      const k = clamp(1 - this.stateT / DIVE_WINDOW, 0, 1);
       const w = 220;
       const x = window.innerWidth / 2 - w / 2;
       const y = window.innerHeight - 60;
