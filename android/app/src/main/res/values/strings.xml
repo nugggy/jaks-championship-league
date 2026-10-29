@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Jak\'s Championship League</string>
+    <string name="title_activity_main">Jak\'s Championship League</string>
+    <string name="package_name">com.nugggy.jakschampionship</string>
+    <string name="custom_url_scheme">com.nugggy.jakschampionship</string>
+</resources>

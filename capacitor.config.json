@@ -1,0 +1,11 @@
+{
+  "appId": "com.nugggy.jakschampionship",
+  "appName": "Jak's Championship League",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#07111f"
+  },
+  "plugins": {
+    "StatusBar": { "overlaysWebView": true }
+  }
+}
